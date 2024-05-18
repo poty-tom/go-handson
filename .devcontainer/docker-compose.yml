@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  app:
+    user: vscode
+    build: 
+      context: ../backend
+      dockerfile: Dockerfile
+    env_file:
+        - ../mysql/.env
+    volumes:
+      - ../backend:/workspace:cached 
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - seccomp:unconfined
+    ports:
+      - 8080:8080
+    command:
+      /bin/sh -c "while sleep 1000; do :; done"
+      /bin/bash
+    depends_on:
+      - mysql
+
+  mysql:
+    container_name: db-for-go
+    build:
+      context: ../mysql
+      dockerfile: Dockerfile
+    command: mysqld --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    platform: linux/x86_64
+    env_file:
+      - ../mysql/.env
+    ports:
+      - '3306:3306'
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ../mysql/conf/my.cnf:/etc/mysql/conf.d/my.cnf
+    networks:
+      - default
+
+volumes:
+  mysql_data:
+    driver: local
+networks:
+  default:
