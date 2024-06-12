@@ -25,3 +25,6 @@ go.work
 
 # .cnf
 .cnf
+
+# .pkg
+pkg/
