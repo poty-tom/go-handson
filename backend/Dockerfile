@@ -1,7 +1,7 @@
 FROM golang:1.22
 
 ENV GO111MODULE on
-WORKDIR /workspace
+WORKDIR /go/src
 
 ARG USERNAME=vscode
 ARG USER_UID=1000
@@ -18,4 +18,5 @@ RUN groupadd --gid $USER_GID $USERNAME \
     && go install github.com/ramya-rao-a/go-outline@latest \
     && go install github.com/fatih/gomodifytags@latest \
     && go install github.com/josharian/impl@latest \
+    && go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest \
     && sudo chmod -R a+rwX /go/pkg/

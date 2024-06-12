@@ -4,18 +4,40 @@
 	"name": "go-mysql-api",
 	"dockerComposeFile": "docker-compose.yml",
 	"service": "app",
-	"workspaceFolder":  "/workspace",//"/workspaces/${localWorkspaceFolderBasename}"
+	"workspaceFolder":  "/go/src",//"/workspaces/${localWorkspaceFolderBasename}"
 	"shutdownAction": "stopCompose",
 	"remoteUser": "vscode",
 	"settings": {
-		"terminal.integrated.defaultProfile.linux": "bash",
-		"go.toolsManagement.checkForUpdates": "local",
-		"go.useLanguageServer": true,
-		"go.gopath": "/go",
-		"go.goroot": "/usr/local/go"
+        "terminal.integrated.shell.linux": "/bin/bash",
+        "go.gopath": "/go/src",
+        "go.useLanguageServer": true,
+        "go.lintTool": "golangci-lint",
+        "go.lintFlags": [
+            "--fast"
+        ],
+        "[go]": {
+            "editor.formatOnSave": true,
+            "editor.codeActionsOnSave": {
+                "source.organizeImports": true,
+            },
+            "editor.snippetSuggestions": "none",
+        },
+        "[go.mod]": {
+            "editor.formatOnSave": true,
+            "editor.codeActionsOnSave": {
+                "source.organizeImports": true,
+            },
+        },
+        "gopls": {
+            "usePlaceholders": true,
+            "staticcheck": false,
+        },
+        "go.toolsEnvVars":{
+            "GO111MODULE":"on"
+        }
 	},
 
 	"extensions": [
-		"golang.Go"
+		"golang.go"
 	]	
 }
