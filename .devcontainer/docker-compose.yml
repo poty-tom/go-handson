@@ -9,7 +9,7 @@ services:
     env_file:
         - ../mysql/.env
     volumes:
-      - ../backend:/workspace:cached 
+      - ../backend:/go/src/:cached
     cap_add:
       - SYS_PTRACE
     security_opt:
@@ -21,6 +21,8 @@ services:
       /bin/bash
     depends_on:
       - mysql
+    networks:
+      - default
 
   mysql:
     container_name: db-for-go

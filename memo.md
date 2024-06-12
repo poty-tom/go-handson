@@ -289,8 +289,8 @@ func main() {
 ```
 /-handlers
 /-models
-    /-models.go
-    /-data.go
+    -models.go
+    -data.go
 /-repositories
     /-articles.go
     /-comments.go
