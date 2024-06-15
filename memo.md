@@ -299,3 +299,213 @@ func main() {
 ```
 go get github.com/go-sql-driver/mysql
 ```
+
+# 4章
+ユニットテストの実装
+
+## テストコード
+goではxx_test.goファイルがテストコードとして認識されるらしい
+
+このことからも命名規則がとても大事だとわかる
+
+### repositoryのサンプルテストコード
+```
+package repositories_test
+
+import (
+    "testing"
+
+    "my-repository"
+)
+
+func TestSelectArticleDetail(t *testing.T) {
+    // 期待する値
+    expected := models.Article {
+
+    }
+
+    // リポジトリから取得された値
+    got, err := repositories.SelectArticleDetail(適切な引数)
+    if err != nil {
+        t.Fatal(err)
+    }
+
+    if got != expected {
+        t.Errorf("get %s but want %s\n", got, expected)
+    }
+}
+```
+
+- パッケージ名
+![Go中級本に記載があった](./img/package_name_rule.png)
+
+パッケージ名の命名規則では、
+main以外のパッケージについてはディレクトリ名と同じパッケージ名をつける必要がある。
+⇒repositoriesディレクトリ上では、package repositoriesとつけていたのはそういう意図
+
+一方でテストコードについては[ディレクトリ名_test]というパッケージ名が例外的に許容されている
+
+
+## testingパッケージ
+標準パッケージであるtestingというものが用意されている。
+こやつを使ってテストコードを実装する
+
+## ユニットテスト関数の形
+- 関数名:TestXxxx
+- 引数:*testing.T
+- 戻り値:なし
+
+```
+func TestSelectArticleDetail(t *testing.T) {
+    expected := ...
+
+    got, err := repositories.Xxxx
+    if err != nil {
+        t.Fatal(err)
+    }
+
+    if got != expected {
+        t.Errorf("get ...)
+    }
+}
+```
+
+## t.Fatal系のメソッド
+
+- Fatal
+fmt.Printlnに近い
+- Fatalf
+fmt.Printfに近い
+
+
+## test main関数
+```
+package main_test
+
+import (
+
+)
+
+func setup() {
+    // 前処理
+}
+
+func teardown() {
+    // 後処理
+}
+
+
+func TestMain(m *testing.M) {
+    setup()
+
+    m.Run()
+
+    teardown()
+}
+
+func TestA()
+
+```
+
+
+# サービス層やる
+
+既存のハンドラの処理を整理
+1. パスからIDを取得
+2. IDの記事をDBから取得
+3. 結果をレスポンスに書き込む
+
+現時点で2ができてない
+
+■復習
+```
+func ArticleListHandler(w http.ResponseWriter, req *http.Request) {
+    queryMap := req.URL.Query()
+
+    var page int
+
+    log.Println(page)
+
+    articleList := []models.Article{models.Article1, models.Article2}
+
+    json.NewEncoder(w).Encode(articleList)
+}
+```
+
+
+## サービス関数の定義
+サービス層に必要な機能
+- IDをもとにDBから記事の取得をする
+- リクエスト内の記事情報を元にDBにレコードを追加する
+- 指定記事にいいねする
+etc.
+
+サンプル
+
+```
+func GetArticleService(articleID int) (models.Article, error) {
+    // TODO: sql.DB型を受け取って変数dbにぶっこむ
+    article, err := repositories.SelectArticleDetail(db, articleID)
+    if err != nil {
+        return models.Article{}, err
+    }
+
+    commentList, err := repositories.SelectCommentList(db, articleID)
+    if err != nil {
+        return models.Article{}, err
+    }
+    
+    article.CommentList = append(article.CommentList, commentList..)
+
+    return article, nil
+}
+```
+
+## helper.go
+
+```
+package services
+
+var (
+    dbUser = "docker"
+    dbPassword = "docker"
+    ...
+)
+
+func connectDB() (*sql.DB, error) {
+    db, err := sql.Open("mysql", dbConn)
+    if err != nil {
+        return nil, err
+    }
+
+    return db, nil
+}
+```
+
+MYSQL_ROOT_USER=root
+MYSQL_ROOT_PASSWORD=password
+MYSQL_DATABASE=sample
+MYSQL_USER=mysql
+MYSQL_PASSWORD=password
+
+Getenv関数で環境変数を読むように処理を直す
+
+```
+import (
+    ...
+    "os"
+)
+
+var (
+    dbUser = os.Getenv("MYSQL_USER")
+    dbPassword = os.Getenv("MYSQL_PASSWORD)
+    dbDatabase = os.Getenv("MYSQL_DATABASE")
+    dbConn = fmt.Sprintf("%s:%s@tcp(127.0.0.1:3306)/%s?parseTime=true", dbUser, dbPassword, dbDatabase)
+)
+
+
+```
+
+一旦5章の内容でAPIを実装してみる。
+dbConnectionを都度つど取得する形でやる感じか・。？
+
