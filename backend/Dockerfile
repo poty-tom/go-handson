@@ -19,4 +19,5 @@ RUN groupadd --gid $USER_GID $USERNAME \
     && go install github.com/fatih/gomodifytags@latest \
     && go install github.com/josharian/impl@latest \
     && go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest \
+    && go install github.com/go-sql-driver/mysql \
     && sudo chmod -R a+rwX /go/pkg/
