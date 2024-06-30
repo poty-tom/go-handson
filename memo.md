@@ -509,3 +509,315 @@ var (
 一旦5章の内容でAPIを実装してみる。
 dbConnectionを都度つど取得する形でやる感じか・。？
 
+# 6章
+アーキテクチャ改装
+## サービス構造体の導入
+```
+package service
+
+import "database/sql"
+
+// API全体で利用するsql.DBへのポインタを持っておく
+type MyAppService struct {
+    db *sql.DB
+}
+
+func NewMyAppService(db *sql.DB) *MyAppService {
+    return &MyAppService{db: db}
+}
+```
+
+## 練習
+上記サービス構造体を利用して既存のAPIを改変
+
+1. サービス関数を修正 
+```
+// 修正前
+func GetArticleListService(page int) ([]models.Article, error) {
+	db, err := connectDB()
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	articleList, err := repositories.SelectArticleList(db, page)
+	if err != nil {
+		return nil, err
+	}
+
+	return articleList, nil
+}
+
+
+// 修正後
+func (s *MyAppService) GetArticleListService(page int) ([]models.Article, error) {
+	articleList, err := repositories.SelectArticleList(s.db, page)
+	if err != nil {
+		return nil, err
+	}
+
+	return articleList, nil
+}
+
+```
+
+2. ハンドラ層の改変
+```
+func PostArticleHandler(w http.ResponseWriter, req *http.Request) {
+    a := [service.MyAppService構造体を取得]
+    article, err := s.PostArticleService(reqArticle)
+}
+```
+でもこのやり方するとサービス層を改変したメリットがないので、同様にハンドラを改変してコントローラ層を導入する
+
+```
+// 以下のようにコントローラーパッケージを構築する
+/--controllers
+    /--controllers.go
+```
+
+```
+type MyAppController struct {
+    service *servies.MyAppService
+}
+
+func NewMyAppController(s *services.MyAppService) *MyAppController {
+    return &MyAppController{service: s}
+}
+```
+
+```
+func (c *MyAppController) PostArticleHandler(w http.ResponseWriter, req *http.Request) {
+    var reqArticle, models.Article
+    if err := json.NewDecoder(req.Body).Decode(&reqArticle); err != nil {
+        http.Error(...)
+    }
+
+    artcicle,err := c.service.PostArticlService(reqAricle)
+
+}
+```
+コントローラ層もサービス層と同様に
+コントローラ構造体を作り、構造体に対してのふるまいという形で定義する。
+
+
+
+3. ハンドラ呼び出し側も修正
+```
+func main() {
+    ser := services.NewMyAppService([sql.DB]型)
+    con := controllers.NewMyAppController(ser)
+    
+    r := mux.NewRouter()
+
+    r.HandleFunc("/article", con.PostArticleHandler).Methods(http.MethodPost)
+    ...
+}
+```
+
+4. ルータ層の作成
+```
+package routers
+
+import (
+
+)
+
+func NewRouter(con *controllers.MyAppController) *mux.Router {
+    // gorilla mux routerを作る
+    r := mux.NewRouter()
+
+    // コントローラないで定義されるハンドラをパスに紐づける
+    r.HandleFunc("path", con.PostHandler).Methods(http.MethodPost)
+
+    return r // 作成したrouterへのポインタを返す
+}
+```
+この結果main自体がとてもすっきりする
+```
+fun main() {
+    db, err := sql.Open("mysql", dbConn)
+
+    if err != nil {
+        log.Println("fail to connect DB")
+        return 
+    }
+
+    ser := services.NewMyAppService(db)
+    con := controllers.NewAppController(ser)
+
+    r := routers.NewRouter(con)
+}
+```
+
+## インターフェースによる抽象化・疎結合化
+コントローラ層から見ると、サービスそうの実装はどうでもいい、
+きめられた構造体を投げたら、構造体とエラーを返してほしいという取り決めくらいあればいい
+
+⇒インタフェースを定義
+```
+/--controllers
+    /--controllers.go
+    /--services
+        /--services.go
+```
+
+```
+package services
+
+import xxx
+
+type MyAppServicer interface {
+    PostArticleService(article models.Article)(models.Article, error)
+    GetArticleListService(page int)([]models.Article, error)
+    ...
+}
+```
+
+昨日途切れてしまった続きからやる。
+今日の内に6章ひととおり完了できれば良い感じか
+
+インタフェースの導入によって、ハンドラが利用するサービスの付け替えが用意になる
+
+## インターフェースの小型化による役割の分離
+前項ではすべてのメソッドを持つものを一つのインタフェースとして定義していたけど、これだと抽象度が低い
+
+```
+type ArticleServicer interface {
+    PostArticleService(article models.Article) (models.Article, error)
+    GetArticleListService(page int) ([]models.Article, error)
+    GetArticleService(articleID, int) (models.Article, error)
+    PostNiceService(article models.Article) (models.Article, error)
+}
+
+type CommentSerivcer interface {
+    PostCommentService(comment models.Comment) (models.Comment, error)
+}
+```
+
+## コントローラの分離
+```
+/--controllers
+    /--services
+        /--services.go
+    /--article_controller.go
+    /--comment_controller.go
+```
+
+```
+package controllers
+
+type ArticleController struct {
+    service services.ArticleServicer
+}
+
+func NewArticleController(s services.ArticleServicer) *ArticleController {
+    return &ArticleController{service: s}
+}
+
+func (c *ArticleController) HelloHandler(w http.ResponseWriter, req *http.Request) {
+
+}
+
+func (c *ArticleController) PostArticleHandler(w http.ResponseWriter, req *http.Request) {
+
+}
+
+func (c *ArticleController) ArticleListHandler(w http.ResponseWriter, req *http.Request){
+
+}
+
+...
+
+
+// comment用のコントローラ構造体も同様に作成
+package controllers
+
+import (
+
+)
+
+type CommentController struct {
+    service services.CommentServicer
+}
+
+func NewCommentController(s services.CommentServicer) *CommentController {
+    return &CommentController{service: s}
+}
+
+func (c *CommentController) PostCommentHandler(w http.ResponseWriter, req *http.Requst){
+
+}
+
+```
+
+main関数側も改修
+```
+func main() {
+    db, err := sql.Open("mysql", dbConn)
+    if err != nil {
+        log.Println("fail to connect DB")
+        return 
+    }
+
+    ser := services.NewMyAppService(db)
+    // service構造体から二つのコントローラを作成
+    aCon := controllers.NewArticleController(ser)
+    cCon := controllers.NewCommentController(ser)
+
+    // 2つのコントローラ構造体から gorilla/muxのるーたを作成
+    r := routers.NewRouter(aCon, cCon)
+}
+```
+
+
+router側も改修
+
+```
+func NewRouter(aCon *controllers.ArticleController, cCon *controllers.CommentController) *mux.Router {
+    r := mux.NewRouter()
+
+    // article関連のハンドラを登録
+    r.HandleFunc("/article", aCon.PostArticleHandler).Methods(http.MethodPost)
+    r.HandleFunc("/article/list", aCon.ArticleListHandler).Methods(http.MethodGet)
+    ...
+
+    // comment関連のハンドラを登録
+    r.HandleFunc("/comment", cCon.PostCommentHandler).Methods(http.MethodPost)
+
+    return r
+}
+```
+
+さらにrouterを改善
+現在の実装だとコントローラ2つが直接指定されている
+⇒今後もコントローラが増え続けた際に都度引数を増やしていくのは効率が悪いので、NewRouter関数内で必要になるコントローラ構造体をその場で作る
+
+```
+func NewRouter(db *sql.DB) *mux.Router {
+    ser := services.NewMyAppService(db)
+    aCon := controllers.NewArticleController(ser)
+    cCon := controllers.NewCommentController(ser)
+
+    r := mux.NewRouter()
+
+    r.HandlerFunc(....)
+    ...
+}
+```
+
+結果的にmain関数内ももっとシンプルになる
+
+```
+func main() {
+    db, err := sql.Open("mysql", dbConn)
+    if err != nil {
+        log.Println("fail to connect DB")
+        return 
+    }
+
+    // connectionが取得できたら
+    // routersでrouterを作成してあげるだけ。
+    r := routers.NewRouter(db)
+}
+```
